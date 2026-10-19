@@ -1,0 +1,11 @@
+[
+  {"file": "self-rag.pdf", "title": "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection", "zotero_key": "RH9AJ2EV", "year": 2023},
+  {"file": "flare.pdf", "title": "Active Retrieval Augmented Generation", "zotero_key": "CU3GAKWH", "year": 2023},
+  {"file": "crag.pdf", "title": "Corrective Retrieval Augmented Generation", "zotero_key": "KLSX9CWM", "year": 2024},
+  {"file": "lightrag.pdf", "title": "LightRAG: Simple and Fast Retrieval-Augmented Generation", "zotero_key": "WZX34BH8", "year": 2025},
+  {"file": "graphrag.pdf", "title": "From Local to Global: A Graph RAG Approach to Query-Focused Summarization", "zotero_key": "DF9WWC7Y", "year": 2025},
+  {"file": "hipporag.pdf", "title": "HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models", "zotero_key": "LDBBGZWT", "year": 2025},
+  {"file": "adaptive-rag.pdf", "title": "Adaptive-RAG: Learning to Adapt Retrieval-Augmented Large Language Models through Question Complexity", "zotero_key": "8U2C8SD8", "year": 2024},
+  {"file": "a-rag.pdf", "title": "A-RAG: Scaling Agentic Retrieval-Augmented Generation via Hierarchical Retrieval Interfaces", "zotero_key": "GAIFEFYF", "year": 2026}
+]
+
