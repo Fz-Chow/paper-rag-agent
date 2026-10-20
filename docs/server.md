@@ -7,7 +7,7 @@
 ## 首次检查
 
 ```bash
-python scripts/check_runtime.py
+python3 scripts/check_runtime.py
 ```
 
 重点观察：
@@ -17,26 +17,32 @@ python scripts/check_runtime.py
 - `rocminfo` 是否能列出 `gfx1151` 设备；
 - Python 环境是否已经提供 PyTorch、ROCm 和模型运行时。
 
-## 启动基线版本
+## 安装与模型设置
 
 ```bash
-pip install -r requirements.txt
-python scripts/build_index.py
-uvicorn paper_rag.api:app --app-dir src --host 0.0.0.0 --port 8000
-```
-
-## GPU 推理配置
-
-先确认平台镜像中已有与 ROCm 匹配的 PyTorch/推理框架，再配置：
-
-```bash
+python3 -m pip install -r requirements.txt
 export PAPER_RAG_DEVICE=rocm
-export PAPER_RAG_LLM_PROVIDER=openai_compatible
-export PAPER_RAG_LLM_BASE_URL=http://127.0.0.1:8001/v1
-export PAPER_RAG_LLM_MODEL=<服务器上的模型名>
+export PAPER_RAG_EMBEDDING_MODEL=BAAI/bge-m3
+export PAPER_RAG_RERANKER_MODEL=BAAI/bge-reranker-v2-m3
+export PAPER_RAG_LLM_MODEL=Qwen/Qwen2.5-3B-Instruct
+python3 scripts/build_index.py
 ```
 
-不应在仓库中保存 API Key、模型权重或服务器访问凭据。若 GPU 后端不可用，保留 `PAPER_RAG_DEVICE=cpu` 并运行基线检索。
+`requirements.txt` 不安装或覆盖 PyTorch。AUP 镜像已提供 ROCm PyTorch 时，保留镜像版本。模型文件会缓存在当前用户的 Hugging Face 缓存目录，首次下载需要较多时间和网络流量。论文向量缓存在 Git 忽略的 `data/index`，重启服务后可复用。
+
+## 启动服务
+
+```bash
+PYTHONPATH=src python3 -m uvicorn paper_rag.api:app --host 0.0.0.0 --port 8000
+```
+
+在 AUP `PORTS` 面板公开 8000。另开终端启动 Streamlit 并公开 8501：
+
+```bash
+streamlit run src/paper_rag/ui.py --server.address 0.0.0.0 --server.port 8501
+```
+
+`/health` 检查设备与模型配置；页面展示检索设备、请求耗时及 GPU 显存。`PAPER_RAG_DEVICE=cpu` 可切回 CPU 基线。不要在仓库提交模型权重、令牌或服务器凭据。
 
 ## 相关官方文档
 
