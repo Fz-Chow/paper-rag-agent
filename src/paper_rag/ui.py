@@ -7,56 +7,199 @@ import streamlit as st
 
 
 API_URL = os.getenv("PAPER_RAG_API_URL", "http://localhost:8000").rstrip("/")
+EXAMPLES = [
+    "比较 LightRAG 与 GraphRAG 的检索流程和适用场景。",
+    "Self-RAG 如何判断是否需要检索，并如何评估生成结果？",
+    "Adaptive-RAG 如何根据问题复杂度选择检索策略？",
+]
+
 st.set_page_config(page_title="PaperRAG-Agent", page_icon="📚", layout="wide")
-st.title("PaperRAG-Agent")
-st.caption("科研论文检索与证据问答")
+st.markdown(
+    """
+    <style>
+    :root {
+      --ink: #17212b;
+      --muted: #667482;
+      --line: #dfe5e8;
+      --surface: #f5f7f7;
+      --accent: #087e75;
+      --accent-soft: #e7f4f1;
+    }
+    .stApp { background: #fbfcfc; color: var(--ink); }
+    [data-testid="stHeader"] { background: rgba(251,252,252,.92); }
+    [data-testid="stSidebar"] { background: #f3f6f5; border-right: 1px solid var(--line); }
+    [data-testid="stSidebar"] > div:first-child { padding-top: 1.25rem; }
+    .brand-mark { color: var(--accent); font-size: .76rem; font-weight: 750; letter-spacing: .08em; }
+    .brand-title { color: var(--ink); font-size: 1.28rem; font-weight: 720; margin: .15rem 0 .2rem; }
+    .brand-copy { color: var(--muted); font-size: .86rem; line-height: 1.5; margin-bottom: 1.1rem; }
+    .section-label { color: #56636e; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin: 1.2rem 0 .45rem; }
+    .status-panel { border: 1px solid var(--line); background: white; border-radius: 8px; padding: .75rem .85rem; margin: .5rem 0; }
+    .status-line { display:flex; justify-content:space-between; gap:.5rem; padding:.27rem 0; font-size:.82rem; }
+    .status-name { color: var(--muted); }
+    .status-value { color: var(--ink); font-weight: 650; text-align:right; overflow-wrap:anywhere; }
+    .status-ok { color: #087e75; }
+    .status-bad { color: #b5473f; }
+    .page-kicker { color: var(--accent); font-size:.78rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .page-title { color:var(--ink); font-size:1.85rem; font-weight:740; line-height:1.18; margin:.15rem 0 .35rem; }
+    .page-subtitle { color:var(--muted); font-size:.96rem; margin-bottom:1.1rem; }
+    .answer-label { color:var(--accent); font-size:.74rem; font-weight:750; letter-spacing:.07em; text-transform:uppercase; margin-bottom:.3rem; }
+    .st-key-answer_output { background:white; border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:7px; padding:1rem 1.15rem; line-height:1.75; }
+    .source-index { color:var(--accent); font-weight:750; }
+    div[data-testid="stMetric"] { border:1px solid var(--line); background:white; border-radius:7px; padding:.55rem .75rem; }
+    div[data-testid="stMetricLabel"] { color:var(--muted); }
+    div[data-testid="stMetricValue"] { font-size:1.28rem; line-height:1.35; }
+    div[data-testid="stForm"] { border:1px solid var(--line); border-radius:8px; background:white; padding:1rem 1rem .75rem; }
+    [data-testid="stFormSubmitButton"] button { background:var(--accent); border-color:var(--accent); color:white; }
+    [data-testid="stFormSubmitButton"] button:hover { background:#06665f; border-color:#06665f; color:white; }
+    button[kind="secondary"] { border-color:var(--line); }
+    @media (max-width: 760px) {
+      .page-title { font-size:1.5rem; }
+      div[data-testid="stMetric"] { padding:.45rem .55rem; }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-try:
-    health = requests.get(f"{API_URL}/health", timeout=5).json()
-    st.caption(
-        f"{health['chunks']:,} 个论文片段 · {health['retrieval_backend']} · "
-        f"设备：{health['device']} · LLM：{health['llm_model'] or '未配置'}"
-    )
-except requests.RequestException:
-    st.warning("API 尚未连接。请先启动端口 8000 的 API 服务。")
 
-with st.form("paper_query"):
+def get_health() -> tuple[dict | None, str | None]:
+    try:
+        response = requests.get(f"{API_URL}/health", timeout=4)
+        response.raise_for_status()
+        return response.json(), None
+    except requests.RequestException as exc:
+        return None, str(exc)
+
+
+health, health_error = get_health()
+
+with st.sidebar:
+    st.markdown('<div class="brand-mark">RESEARCH WORKSPACE</div>', unsafe_allow_html=True)
+    st.markdown('<div class="brand-title">PaperRAG-Agent</div>', unsafe_allow_html=True)
+    st.markdown('<div class="brand-copy">在论文证据中检索、比较与归纳研究结果。</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="section-label">运行状态</div>', unsafe_allow_html=True)
+    if health:
+        device = health.get("device", "unknown")
+        gpu_ready = device == "cuda"
+        state_label = "GPU 就绪" if gpu_ready else "CPU 模式"
+        state_class = "status-ok" if gpu_ready else ""
+        embedding_model = health.get("embedding_model") or "TF-IDF"
+        llm_model = health.get("llm_model") or "未配置"
+        reranker = health.get("reranker_model") or "未启用"
+        st.markdown(
+            f"""
+            <div class="status-panel">
+              <div class="status-line"><span class="status-name">API</span><span class="status-value status-ok">在线</span></div>
+              <div class="status-line"><span class="status-name">设备</span><span class="status-value {state_class}">{device} · {state_label}</span></div>
+              <div class="status-line"><span class="status-name">论文片段</span><span class="status-value">{health.get('chunks', 0):,}</span></div>
+              <div class="status-line"><span class="status-name">Embedding</span><span class="status-value">{embedding_model}</span></div>
+              <div class="status-line"><span class="status-name">Reranker</span><span class="status-value">{reranker}</span></div>
+              <div class="status-line"><span class="status-name">生成模型</span><span class="status-value">{llm_model}</span></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div class="status-panel"><span class="status-bad">API 离线</span><br><span class="status-name">请启动端口 8000 的 API 服务。</span></div>',
+            unsafe_allow_html=True,
+        )
+        with st.expander("连接详情"):
+            st.code(health_error or "未知错误")
+
+    st.markdown('<div class="section-label">检索设置</div>', unsafe_allow_html=True)
+    top_k = st.slider("返回证据数", min_value=1, max_value=10, value=5)
+
+    st.markdown('<div class="section-label">试试这些问题</div>', unsafe_allow_html=True)
+    selected_example = st.selectbox("示例问题", ["选择一个示例…", *EXAMPLES], label_visibility="collapsed")
+    if selected_example != "选择一个示例…":
+        st.session_state["paper_rag_question"] = selected_example
+
+    st.divider()
+    st.caption("来源范围：Zotero 文献库 · RAG / Agent")
+
+st.markdown('<div class="page-kicker">PAPER KNOWLEDGE BASE</div>', unsafe_allow_html=True)
+st.markdown('<div class="page-title">科研论文问答</div>', unsafe_allow_html=True)
+st.markdown('<div class="page-subtitle">输入研究问题，查看模型回答及其对应的论文证据。</div>', unsafe_allow_html=True)
+
+with st.form("paper_query", border=False):
     question = st.text_area(
         "研究问题",
+        key="paper_rag_question",
         placeholder="例如：比较 LightRAG 与 GraphRAG 的检索流程和适用场景。",
-        height=100,
+        height=112,
+        label_visibility="collapsed",
     )
-    top_k = st.slider("证据数量", min_value=1, max_value=10, value=5)
-    submitted = st.form_submit_button("检索并生成回答", type="primary")
+    left, right = st.columns([1, 5])
+    with left:
+        submitted = st.form_submit_button("检索并回答", icon=":material/search:", type="primary", use_container_width=True)
+    with right:
+        st.caption("支持论文问答、方法比较和研究总结；回答将附带来源页码。")
 
-if submitted and question.strip():
-    try:
-        response = requests.post(
-            f"{API_URL}/query",
-            json={"question": question, "top_k": top_k},
-            timeout=600,
+if submitted:
+    if not question.strip():
+        st.warning("先输入一个研究问题。")
+    else:
+        try:
+            st.session_state.pop("paper_rag_result", None)
+            with st.spinner("正在检索论文并组织证据…"):
+                response = requests.post(
+                    f"{API_URL}/query",
+                    json={"question": question, "top_k": top_k},
+                    timeout=600,
+                )
+                response.raise_for_status()
+                result = response.json()
+            st.session_state["paper_rag_result"] = result
+            st.session_state["paper_rag_last_question"] = question
+        except requests.HTTPError as exc:
+            detail = exc.response.text if exc.response is not None else str(exc)
+            st.error(f"推理服务返回错误：{detail}")
+        except requests.RequestException as exc:
+            st.error(f"无法连接推理服务：{exc}")
+
+result = st.session_state.get("paper_rag_result")
+if result:
+    st.divider()
+    st.markdown('<div class="answer-label">ANSWER</div>', unsafe_allow_html=True)
+    st.markdown(f"**{st.session_state.get('paper_rag_last_question', '')}**")
+
+    gpu = result.get("gpu") or {}
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("任务", {"compare": "论文比较", "summarize": "研究总结", "question_answering": "论文问答"}.get(result["agent"]["task"], result["agent"]["task"]))
+    metric_cols[1].metric("推理设备", result.get("device", "未知"))
+    metric_cols[2].metric("响应时间", f"{result.get('elapsed_seconds', 0):.2f} 秒")
+    metric_cols[3].metric("GPU 已分配显存", f"{gpu['allocated_mb']:.0f} MB" if gpu else "未启用")
+
+    with st.container(border=True, key="answer_output"):
+        st.markdown(result.get("answer", "没有生成回答。"))
+
+    if gpu:
+        st.caption(
+            f"{gpu.get('device_name', 'GPU')} · HIP {gpu.get('hip_version') or '可用'} · "
+            f"显存可用 {gpu.get('free_mb', 0):.0f} / {gpu.get('total_mb', 0):.0f} MB"
         )
-        response.raise_for_status()
-        result = response.json()
-        metrics = st.columns(4)
-        metrics[0].metric("任务类型", result["agent"]["task"])
-        metrics[1].metric("设备", result["device"])
-        metrics[2].metric("耗时", f"{result['elapsed_seconds']} s")
-        gpu = result.get("gpu")
-        metrics[3].metric("GPU 已分配显存", f"{gpu['allocated_mb']:.0f} MB" if gpu else "未启用")
 
-        st.subheader("回答")
-        st.markdown(result["answer"])
-        with st.expander("Agent 执行步骤"):
-            st.write(" → ".join(result["agent"]["steps"]))
+    with st.expander("Agent 执行路径"):
+        st.write(" → ".join(result.get("agent", {}).get("steps", [])))
 
-        st.subheader("引用证据")
-        for number, source in enumerate(result["sources"], start=1):
-            with st.expander(
-                f"[{number}] {source['paper_title']} · 第 {source['page']} 页 · 分数 {source['score']}"
-            ):
-                st.caption(f"文件：{source['source_file']} · 片段：{source['chunk_id']}")
-                st.write(source["text"])
-    except requests.RequestException as exc:
-        st.error(f"请求失败：{exc}")
+    sources = result.get("sources", [])
+    st.subheader(f"引用证据 · {len(sources)} 条")
+    if not sources:
+        st.info("没有检索到匹配证据。可以换一种表述，或调整侧栏中的证据数量。")
+    for number, source in enumerate(sources, start=1):
+        title = source.get("paper_title", "未命名论文")
+        page = source.get("page", "?")
+        score = source.get("score", 0)
+        with st.expander(f"[{number}]  {title}  ·  p.{page}  ·  {score:.3f}"):
+            st.caption(f"{source.get('source_file', '')} · 片段 {source.get('chunk_id', '')}")
+            st.write(source.get("text", ""))
+            if source.get("retrieval_score") is not None:
+                st.caption(f"初始检索分数 {source['retrieval_score']:.3f} · 重排分数 {score:.3f}")
+else:
+    st.divider()
+    empty_left, empty_main, empty_right = st.columns([1, 6, 1])
+    with empty_main:
+        st.info("输入问题后开始检索。结果将显示在这里，并附上可核对的论文原文片段。")
 
