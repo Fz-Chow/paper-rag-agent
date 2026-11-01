@@ -9,6 +9,7 @@
 ```bash
 cd /home/jovyan/paper-rag-agent
 git status --short
+git remote set-url origin https://github.com/Fz-Chow/Evidence-Layout-Lab.git
 git pull --ff-only origin main
 ```
 
@@ -16,11 +17,11 @@ git pull --ff-only origin main
 
 ```bash
 cd /home/jovyan
-git clone https://github.com/Fz-Chow/paper-rag-agent.git evidence-layout-lab
+git clone https://github.com/Fz-Chow/Evidence-Layout-Lab.git evidence-layout-lab
 cd evidence-layout-lab
 ```
 
-后续命令都在项目根目录运行。上面的远端名称暂时保留，作者之后手动更名时再调整 clone 地址与 origin。AUP 官方建议把需保留的文件放在用户工作目录；实际持久化和配额以课程实例为准，重要结果另行下载备份。[平台与存储说明](https://amdresearch.github.io/aup-learning-cloud/user-guide/platform-basics.html)
+后续命令都在项目根目录运行。GitHub 仓库已更名为 Evidence-Layout-Lab；原有本地目录可以继续使用，更新 origin 即可。AUP 官方建议把需保留的文件放在用户工作目录；实际持久化和配额以课程实例为准，重要结果另行下载备份。[平台与存储说明](https://amdresearch.github.io/aup-learning-cloud/user-guide/platform-basics.html)
 
 ## 2. 检查镜像并保留 ROCm PyTorch
 
