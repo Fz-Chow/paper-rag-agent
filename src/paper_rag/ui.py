@@ -87,6 +87,9 @@ if page != "论文问答":
         manifest = json.loads((directory / "manifest.json").read_text())
         records = load_records(directory)
         st.caption("批量实验由命令行执行；此页面只读取已落盘结果。")
+        if manifest.get("presentation_only"):
+            st.sidebar.warning("人工构造数据 · 非模型实测")
+            st.warning("界面演示：回答与评分来自人工构造数据，未调用模型，不代表实验结论；运行成本未测量。")
         expected = manifest["config"]["expected_records"]
         st.caption(f"已保存 {len(records)} / {expected} 次记录（错误记录也计入）。")
         if len(records) != expected:

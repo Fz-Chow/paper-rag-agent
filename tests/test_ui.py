@@ -38,3 +38,21 @@ def test_saved_results_and_case_display(tmp_path):
     app.checkbox[0].set_value(False).run()
     assert not app.exception
     assert len(app.code)==3
+
+
+def test_artificial_demo_has_explicit_labels_and_no_costs(tmp_path):
+    import subprocess
+    import sys
+    import json
+    root=UI.parents[2]
+    output=tmp_path/'ui-demo'
+    subprocess.run([sys.executable,str(root/'scripts/create_demo_results.py'),'--output',str(output)],check=True,capture_output=True,text=True)
+    report=json.loads((output/'evaluation.json').read_text())
+    assert len(report['details'])==14
+    assert all(row['mean_seconds'] is None for row in report['summary'])
+    app=AppTest.from_file(str(UI)).run(timeout=20)
+    app.sidebar.radio[0].set_value('实验对比').run()
+    app.sidebar.text_input[0].set_value(str(output)).run()
+    assert not app.exception
+    assert any('人工构造数据' in x.value for x in app.sidebar.warning)
+    assert any('未调用模型' in x.value for x in app.warning)

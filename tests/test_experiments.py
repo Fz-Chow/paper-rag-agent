@@ -110,3 +110,14 @@ def test_prompt_and_dataset_do_not_reveal_fixed_gold_citation_ids():
     assert 'E1' not in TASKS['experiment'] and 'E2' not in TASKS['experiment']
     tasks=load_tasks(ROOT/'data/experiments/two_hop_demo.jsonl')
     assert len({tuple(t['required_ids']) for t in tasks})>1
+
+
+def test_unmeasured_demo_costs_stay_empty():
+    r=record()
+    for key in ('input_tokens','output_tokens','elapsed_seconds'):
+        r['generation'][key]=None
+    summary=evaluate([r])['summary'][0]
+    assert summary['mean_input_tokens'] is None
+    assert summary['mean_output_tokens'] is None
+    assert summary['mean_seconds'] is None
+    assert summary['max_peak_allocated_mb'] is None

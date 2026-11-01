@@ -70,7 +70,7 @@ def evaluate(records, reviews=None):
     for (split, condition), pairs in sorted(grouped.items()):
         ok = [(r,s) for r,s in pairs if r["status"] == "ok"]
         def mean_metric(key):
-            values = [r["generation"][key] for r,s in ok]
+            values = [r["generation"][key] for r,s in ok if r["generation"].get(key) is not None]
             return sum(values)/len(values) if values else None
         support = [s["citation_support"] for r,s in ok if s["citation_support"] is not None]
         task_scores = defaultdict(list)

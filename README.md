@@ -63,9 +63,27 @@ python3 -m streamlit run src/paper_rag/ui.py --server.address 0.0.0.0 --server.p
 
 没有配置生成模型时，问答返回检索证据并明确提示未生成综合回答。设置本地模型后问答与实验共用生成模块。关键词路由只用于普通问答，不是实验方法。普通问答没有标准必要证据标签，其必要证据覆盖率保持空值；引用编号合法不代表内容得到支持。
 
-旧版问答界面截图仅供参考，不是本版实验结果或 GPU 实测：
+## 新版界面预览
 
-![论文问答示意](docs/images/ui-desktop-results.png)
+论文问答截图来自当前版本的本机真实 PDF 检索，使用 CPU / TF-IDF，未加载生成模型。
+
+![新版论文问答与真实检索证据](docs/images/v03-paper-qa.jpg)
+
+实验对比与失败案例截图使用**人工构造的界面演示数据**，未调用模型，不代表 AUP 实测结果或证据分散的研究结论；token、耗时和 GPU 成本均留空。页面顶部及侧栏持续显示演示标识。
+
+![新版实验对比：人工构造演示数据，非模型实测](docs/images/v03-experiment-comparison.jpg)
+
+![新版失败案例：人工构造演示数据的排列与证据](docs/images/v03-failure-case.jpg)
+
+![新版失败案例：人工构造演示数据的回答与评分](docs/images/v03-failure-scoring.jpg)
+
+可在空目录中生成同样的展示数据，再启动界面，选择实验页并将结果目录设为 `results/ui-demo`：
+
+```bash
+python3 scripts/create_demo_results.py
+```
+
+该脚本不会加载模型；演示目录与真实实验目录分开，不能用于正式评测。
 
 ## 在 AUP 执行实验
 
