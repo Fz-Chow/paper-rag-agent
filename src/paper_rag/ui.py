@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 import os
+import json
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from paper_rag.experiments.evaluate import evaluate, load_records
 
 import requests
 import streamlit as st
@@ -13,7 +18,7 @@ EXAMPLES = [
     "Adaptive-RAG 如何根据问题复杂度选择检索策略？",
 ]
 
-st.set_page_config(page_title="PaperRAG-Agent", page_icon="📚", layout="wide")
+st.set_page_config(page_title="Evidence Layout Lab", page_icon="📚", layout="wide")
 st.markdown(
     """
     <style>
@@ -71,11 +76,82 @@ def get_health() -> tuple[dict | None, str | None]:
         return None, str(exc)
 
 
+
+page = st.sidebar.radio("页面", ["论文问答", "实验对比", "失败案例"])
+if page != "论文问答":
+    st.title(page)
+    root = Path(__file__).resolve().parents[2]
+    result_dir = st.sidebar.text_input("结果目录", str(root / "results" / "smoke"))
+    try:
+        directory = Path(result_dir).expanduser()
+        manifest = json.loads((directory / "manifest.json").read_text())
+        records = load_records(directory)
+        st.caption("批量实验由命令行执行；此页面只读取已落盘结果。")
+        expected = manifest["config"]["expected_records"]
+        st.caption(f"已保存 {len(records)} / {expected} 次记录（错误记录也计入）。")
+        if len(records) != expected:
+            st.warning("实验尚未完整运行，下表是部分结果。")
+        with st.expander("实验配置与环境"):
+            st.json(manifest)
+        if not records:
+            st.info("尚无已保存的逐次记录。")
+            st.stop()
+        # Always recalculate from raw records; use saved report only for manual reviews.
+        reviews = {}
+        saved = directory / "evaluation.json"
+        if saved.exists():
+            for detail in json.loads(saved.read_text()).get("details", []):
+                if detail.get("human_review"):
+                    reviews[detail["run_id"]] = detail["human_review"]
+        report = evaluate(records, reviews)
+        if manifest["config"]["allow_unreviewed"]:
+            st.warning("未人工核验的演示运行，不能作为正式研究结论。")
+        if page == "实验对比":
+            st.dataframe(report["summary"], use_container_width=True)
+            st.caption(report["notes"])
+            st.subheader("配对结果变化")
+            st.dataframe(report["paired_changes"], use_container_width=True)
+            st.download_button("下载完整评分", json.dumps(report, ensure_ascii=False, indent=2), "evaluation.json", "application/json")
+        else:
+            details = {s["run_id"]: s for s in report["details"]}
+            only_failed = st.checkbox("只看有失败或条件间正确性不同的题", value=True)
+            task_ids = sorted({r["task"]["id"] for r in records})
+            if only_failed:
+                task_ids = [tid for tid in task_ids if any(not details[r["run_id"]]["answer_correct"] for r in records if r["task"]["id"] == tid)]
+            if not task_ids:
+                st.info("没有符合筛选条件的案例。")
+                st.stop()
+            tid = st.selectbox("题目", task_ids)
+            selected = [r for r in records if r["task"]["id"] == tid]
+            options = sorted({(r["rotation"], r["reverse"]) for r in selected})
+            rotation, reverse = st.selectbox("排列（轮转、反向）", options)
+            st.write(selected[0]["task"]["question"])
+            st.caption(f"标准答案：{selected[0]['task']['answer']}")
+            cols = st.columns(3)
+            for col, condition in zip(cols, ("necessary", "concentrated", "dispersed")):
+                with col:
+                    st.subheader(condition)
+                    matches = [r for r in selected if r["condition"] == condition and r["rotation"] == rotation and r["reverse"] == reverse]
+                    if not matches:
+                        st.caption("此排列无记录（必要证据只运行轮转 0）。")
+                        continue
+                    r = matches[0]
+                    ctx = r.get("context") or {}
+                    st.json({k:ctx.get(k) for k in ("order", "required_positions", "input_tokens", "evidence_token_offsets")})
+                    st.text(ctx.get("text", "上下文构造失败"))
+                    st.code(r.get("generation", {}).get("answer", r.get("error", "")))
+                    st.json(details[r["run_id"]])
+                    with st.expander("完整原始记录"):
+                        st.json(r)
+    except (OSError, ValueError, KeyError) as exc:
+        st.error(f"无法读取结果：{exc}")
+    st.stop()
+
 health, health_error = get_health()
 
 with st.sidebar:
     st.markdown('<div class="brand-mark">RESEARCH WORKSPACE</div>', unsafe_allow_html=True)
-    st.markdown('<div class="brand-title">PaperRAG-Agent</div>', unsafe_allow_html=True)
+    st.markdown('<div class="brand-title">Evidence Layout Lab</div>', unsafe_allow_html=True)
     st.markdown('<div class="brand-copy">在论文证据中检索、比较与归纳研究结果。</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-label">运行状态</div>', unsafe_allow_html=True)

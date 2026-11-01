@@ -1,0 +1,12 @@
+{
+  "demo-01--concentrated--r0--v0": {
+    "reviewer": "替换为实际人工评审人",
+    "reviewed_at": "替换为实际评审日期",
+    "supported_citations": {
+      "E1": true,
+      "E2": true
+    },
+    "error_type": null,
+    "note": "仅为结构示例。必须先阅读该次真实输出，并对所有实际引用逐条判断后使用。"
+  }
+}

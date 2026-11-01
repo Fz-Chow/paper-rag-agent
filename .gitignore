@@ -10,3 +10,8 @@ models/
 *.log
 .DS_Store
 
+.playwright-cli/
+results/
+
+.venv-aup/
+evidence-layout-*.tar.gz
